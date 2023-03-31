@@ -1,16 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
-import Map from 'ol/Map';
-import View from 'ol/View';
+import * as ol from 'ol'
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { fromLonLat } from 'ol/proj';
 import '../ol.css'
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import { circular } from 'ol/geom/Polygon';
 import Control from 'ol/control/Control';
+
 
 export default function OpenLayer() {
 
@@ -18,9 +17,22 @@ export default function OpenLayer() {
 
     function handleSubmit(e){
         e.preventDefault();
-        const searchLat = e.target.latName.value;
-        const searchLong = e.target.longName.value;
-        console.log(searchLat + searchLong);
+        var lat = parseFloat(e.target.latName.value);
+        var lon = parseFloat(e.target.longName.value);
+        map.setView(
+            new ol.View({
+            center: fromLonLat([lat, lon]),
+            zoom: 10,
+            minZoom: 10,
+            maxZoom: 20,
+        }));
+        const accuracy_1 = circular([lat, lon], [lat, lon].accuracy);
+        source.addFeatures([
+            new ol.Feature(
+                accuracy_1.transform('EPSG:4326', map.getView().getProjection())
+            ),
+            new ol.Feature(new Point(fromLonLat([lat, lon]))),
+        ]);
     }
     
     const mapRef = useRef(null);
@@ -30,7 +42,6 @@ export default function OpenLayer() {
         source: source,
     });
     
-    
     useEffect(() => {
         navigator.geolocation.watchPosition(
             function (pos) {
@@ -38,10 +49,10 @@ export default function OpenLayer() {
                 const accuracy = circular(coords, pos.coords.accuracy);
                 source.clear(true);
                 source.addFeatures([
-                    new Feature(
+                    new ol.Feature(
                         accuracy.transform('EPSG:4326', initialMap.getView().getProjection())
                     ),
-                    new Feature(new Point(fromLonLat(coords))),
+                    new ol.Feature(new Point(fromLonLat(coords))),
                 ]);
             },
             function (error) {
@@ -51,17 +62,18 @@ export default function OpenLayer() {
                 enableHighAccuracy: true,
             }
         );
-
-        const initialMap = new Map({
+        const initialMap = new ol.Map({
             target: mapRef.current,
             layers: [
                 new TileLayer({
                     source: new OSM(),
                 }),
             ],
-            view: new View({
-                center: fromLonLat([1, 2]),
-                zoom: 2,
+            view: new ol.View({
+                center: fromLonLat([80.198654, 13.1136077]),
+                zoom: 10,
+                minZoom: 10,
+                maxZoom: 20,
             }),
         });
         initialMap.addLayer(layer);
@@ -81,7 +93,6 @@ export default function OpenLayer() {
                 element: locate,
             })
         );
-        
         setMap(initialMap);
         return () => initialMap.setTarget(null)
     }, []);
@@ -90,7 +101,7 @@ export default function OpenLayer() {
 
     return (
         <>
-            <div>
+            <div style={{margin : '20px'}}>
                 <form onSubmit={handleSubmit}>
                     <input type='text' placeholder='Enter Latitude...' name='latName' />
                     <input type='text' placeholder='Enter Longitude...' name='longName'  />
@@ -99,7 +110,7 @@ export default function OpenLayer() {
             </div>
             <div
                 ref={mapRef}
-                style={{ width: '70%', height: '300px', alignItems: "center" }}
+                style={{ margin:'20px',width: '60%', height: '500px', alignItems: "center" }}
             />
         </>
     );
